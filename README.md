@@ -1,51 +1,194 @@
-# Welcome to xRx
-**Any modality input (x), reasoning (R), any modality output (x).**
+# Simple Reasoning Agent
 
-xRx is a framework for building AI-powered applications that interact with users across multiple modalities.
+## Overview
 
-This repository contains the reasoning applications built on top of the xRx framework.
+This project features a simple reasoning app designed to demonstrate basic logical reasoning capabilities. The agent is built to autonomously process text input and provide responses based on a predefined set of rules or knowledge base. This agent serves as a foundation for more complex reasoning systems and can be easily modified for various tasks.
 
-The reasoning systems process input, generate responses and manage the overall conversation flow within the xRx framework. Each subdirectory in this folder represents a different application, including a specific reasoning agent and an UI.
+* **Table of Contents:**
+  * Features
+  * Getting Started
+  * How To Run
+  * Project Structure
+  * API Usage
+  * Contributing
 
-> **Documentation.** Check out the full documentation [here](https://8090-inc.github.io/xrx-core/).
+## Features
+This app serves as an example of how to implement specific tools within the xRx framework. It showcases two custom tools: a weather tool for retrieving forecasts and a stock tool for obtaining information about stocks. The application leverages a language model for natural language processing and response generation, ensuring smooth interaction with users. Built on FastAPI, it offers robust and efficient web server performance. Additionally, the app includes observability and logging features, facilitating easy monitoring and debugging of the system.
 
-## Available Reasoning Applications
-1. [Simple App](./simple-app): A simple template for creating custom reasoning apps.
-2. [Pizza Store](./pizza-store): An app designed to handle app-based interactions with a Pizza Store.
-3. [Shopify App](./shopify-app): An app designed to handle app-based interactions with a Shopify store.
-4. [Wolfram Assistant App](./wolfram-assistant-app): An app designed to handle math and physics-based interactions.
-5. [Patient Information App](./patient-information-app): An app designed to collect and manage patient information before a doctor's visit.
+## Getting Started
 
-## Usage
-To get started with xRx, follow these steps:
+### Prerequisites
 
-1. Clone the repository with its submodules using the following command:
-
+* We assume you have already cloned the repository, as explained in the general README. For the sake of clarity, here's the command again:
    ```
    git clone --recursive https://github.com/8090-inc/xrx-sample-apps.git
    ```
-   It's crucial to include the `--recursive` flag when cloning, as each application is built on top of a git submodule called `xrx-core`. This submodule contains the fundamental building blocks for the xRx framework.
 
-2. Navigate to the cloned repository:
-
+* If the submodule was not installed, or you want to update it, use the following command:
    ```
-   cd xrx-sample-apps
+   git submodule update --init --recursive
    ```
 
-3. To use a specific reasoning application:
-   - Navigate to the specific folder
-   - Set the `.env` variables
-   - Run the `docker compose` command
-   - Each application has its own set of environment variables. Refer to the `.env.example` file in each application's directory for the required variables.
+* Install `Docker`, `Python3`, and `Pip3` with [homebrew](https://formulae.brew.sh/) on macOS or `apt-get update` on Debian/Ubuntu based Linux systems:
 
-    > **Note:** We suggest opening only that specific folder in your IDE for a cleaner workspace.
+    ```bash
+    brew cask install docker
+    brew install python@3.10
+    ```
 
-4. Continue following the instructions in the README file of the specific application you are interested in.
 
-For more detailed information on how to implement and use these reasoning systems, please refer to the README files within each application's subdirectory.
+### Environment Variables
+
+The following environment variables are required:
+
+- `LLM_API_KEY`: Your API key for the language model service (e.g., OpenAI, Groq)
+- `LLM_BASE_URL`: The base URL for the language model API
+- `LLM_MODEL_ID`: The ID of the language model to use
+
+Create a `.env` file in the root directory of your project. Use the provided `env-example.txt` as a template. Here's a minimal example:
+  ```
+  LLM_API_KEY=your_api_key_here
+  LLM_BASE_URL="https://api.groq.com/openai/v1"
+  LLM_MODEL_ID="llama3-70b-8192"
+  ```
+
+## How To Run
+
+### Using Docker
+
+1. Build the Docker image:
+   ```bash
+   docker build -t simple-reasoning-agent:latest .
+   ```
+
+2. Run the container:
+   ```bash
+   docker run -p 8003:8003 --env-file .env simple-reasoning-agent:latest
+   ```
+
+The agent will be accessible at `http://localhost:8003`.
+
+
+### Locally without Docker
+
+1. Set up the Python virtual environment:
+  ```
+  python3 -m venv venv
+  source venv/bin/activate
+  ```
+
+2. Install requirements:
+  ```bash
+  pip install -r requirements.txt
+  ```
+3. Start a local redis cluster
+  ```bash
+  redis-server --port 6379
+  ```
+
+4. Run the application:
+  ```bash
+  cd app
+  uvicorn main:app --host 127.0.0.1 --port 8003 --reload
+  ```
+
+The agent will now be running at `http://localhost:8003` (or the port specified in your `.env` file).
+
+## Project Structure
+
+- `app/`: Contains the main application code
+  - `agent/`: Agent logic
+    - `executor.py`: Main agent execution logic
+    - `tools/`: Folder containing agent tools
+      - `generic_tools.py`: Generic tools for the agent
+  - `__init__.py`: Initializes the app module
+  - `main.py`: FastAPI application setup and endpoint definition
+- `test/`: Contains test files
+- `xrx-core/`: Core xRx framework (submodule)
+- `Dockerfile`: Docker configuration for containerization
+- `requirements.txt`: Python dependencies
+- `docker-compose.yaml`: Docker Compose configuration file
+- `env-example.txt`: Example environment variables file
+- `README.md`: Project documentation
+
+## API Usage
+
+The agent exposes a single endpoint using FastAPI:
+
+- `POST /run-reasoning-agent`: Submit a query to the reasoning agent and receive streaming responses.
+
+Example request using `curl`:
+
+```bash
+curl -X POST http://localhost:8003/run-reasoning-agent \
+     -H "Content-Type: application/json" \
+     -H "Accept: text/event-stream" \
+     -d '{
+           "session": {
+               "id": "1234567890"
+           },
+           "messages": [
+               {"role": "user", "content": "What is the weather like in Paris?"}
+           ]
+         }'
+```
+
+Example request using Python's `requests` library with streaming:
+
+```python
+import requests
+import json
+
+url = "http://localhost:8003/run-reasoning-agent"
+headers = {
+    "Content-Type": "application/json",
+    "Accept": "text/event-stream",
+}
+payload = {
+    "session": {"id": "1234567890"},
+    "messages": [{"role": "user", "content": "What is the weather like in Paris?"}]
+}
+
+response = requests.post(url, headers=headers, data=json.dumps(payload), stream=True)
+
+for line in response.iter_lines(decode_unicode=True):
+    if line.startswith('data: '):
+        data = json.loads(line[6:])
+        print(data)
+```
+
+Example response (streaming):
+
+```json
+{
+  "messages": [
+    {"role": "assistant", "content": "The weather in Paris is currently sunny with a temperature of 20°C."}
+  ],
+  "session": {"id": "1234567890"}
+}
+```
+
+
+## Project Structure
+
+- `app/`: Contains the main application code
+  - `agent/`: Agent logic
+    - `executor.py`: Main agent execution logic
+    - `tools/`: Folder containing agent tools
+      - `generic_tools.py`: Generic tools for the agent
+  - `__init__.py`: Initializes the app module
+  - `main.py`: FastAPI application setup and endpoint definition
+- `test/`: Contains test files
+- `xrx-core/`: Core xRx framework (submodule)
+- `Dockerfile`: Docker configuration for containerization
+- `requirements.txt`: Python dependencies
+- `docker-compose.yaml`: Docker Compose configuration file
+- `env-example.txt`: Example environment variables file
+- `README.md`: Project documentation
 
 ## Contributing
-We welcome contributions to the xRx framework and its sample applications. If you have any suggestions or improvements, please follow these steps:
+
+Contributions to improve the Simple App are welcome. Please follow these steps:
 
 1. Open a new issue on GitHub describing the proposed change or improvement
 2. Fork the repository
@@ -54,62 +197,4 @@ We welcome contributions to the xRx framework and its sample applications. If yo
 5. Push to your branch
 6. Create a pull request, referencing the issue you created
 
-> **Note:** Pull requests not backed by published issues will not be considered. This process ensures that all contributions are discussed and aligned with the project's goals before implementation.
-
-## GitHub Actions Workflow
-
-This project uses a GitHub Actions workflow to automatically build and test Docker Compose projects in each subdirectory of the repository.
-
-### Workflow Details
-
-The workflow is defined in `.github/workflows/build-docker-compose.yml` and does the following:
-
-1. Triggers on:
-   - Push to `main` or `test-workflow` branches
-   - Pull requests to `main` branch
-   - Manual dispatch
-
-2. For each subdirectory in the repository root:
-   - Builds the Docker Compose project
-   - Starts the containers
-   - Stops and removes the containers
-
-### Testing the Workflow
-
-To test the GitHub Actions workflow:
-
-1. **Push to test-workflow branch**: Make changes and push to the `test-workflow` branch to trigger the workflow.
-
-2. **Create a Pull Request**: Open a PR to the `main` branch to trigger the workflow.
-
-3. **Manual Trigger**: 
-   - Go to the Actions tab in the GitHub repository
-   - Select "Build Docker Compose Projects" workflow
-   - Click "Run workflow" and select the branch to run on
-
-4. **Local Testing with Act**:
-   If you have [Act](https://github.com/nektos/act) installed, you can test locally:
-   ```
-   act push
-   ```
-
-### Workflow Configuration
-
-The workflow uses the following Docker Compose flags:
-- `--build`: Build images before starting containers
-- `--no-cache`: Do not use cache when building images
-- `--force-recreate`: Recreate containers even if their configuration hasn't changed
-- `--renew-anon-volumes`: Recreate anonymous volumes
-- `--remove-orphans`: Remove containers for services not defined in the Compose file
-
-### Debugging
-
-The workflow has debug logging enabled. Check the workflow run logs in the GitHub Actions tab for detailed output.
-
-## Project Structure
-
-Ensure each subdirectory that should be built has a valid `docker-compose.yml` file.
-
-## Updates
-
-- 2024-09-23: We are temporarily removing the guardrails proxy and reasoning service from the docker compose setup, due to breaking changes from guardrailsai. 
+> **Note:** pull requests not backed by published issues will not be considered. This process ensures that all contributions are discussed and aligned with the project's goals before implementation.
